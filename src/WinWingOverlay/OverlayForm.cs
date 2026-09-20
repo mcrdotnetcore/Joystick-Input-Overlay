@@ -113,7 +113,7 @@ internal sealed class OverlayForm : Form
 
         if (_menuOpen)
         {
-            target = _renderer.MeasureMenu(BasisSize);
+            target = _renderer.MeasureMenu(BasisSize, _config);
         }
         else
         {
@@ -564,6 +564,15 @@ internal sealed class OverlayForm : Form
 
     private void Activate(string id)
     {
+        if (id.StartsWith("band:", StringComparison.Ordinal)) { ActivateBand(id); return; }
+
+        if (id.StartsWith("colour:", StringComparison.Ordinal))
+        {
+            _config.CollectiveText = id["colour:".Length..];
+            SaveAndRefresh();
+            return;
+        }
+
         switch (id)
         {
             case "mode:full": SetMode(ViewMode.Full); break;
@@ -581,6 +590,11 @@ internal sealed class OverlayForm : Form
                 SaveAndRefresh();
                 break;
 
+            case "bands":
+                _config.CollectiveBandsEnabled = !_config.CollectiveBandsEnabled;
+                SaveAndRefresh();
+                break;
+
             case "obs": ToggleWindowList(); Redraw(); break;
             case "buttons": _config.ShowButtons = !_config.ShowButtons; SaveAndRefresh(); break;
             case "readouts": _config.ShowAxisReadouts = !_config.ShowAxisReadouts; SaveAndRefresh(); break;
@@ -591,6 +605,53 @@ internal sealed class OverlayForm : Form
             case "config": OpenConfigFolder(); break;
             case "exit": Close(); break;
         }
+    }
+
+    /// <summary>
+    /// The colour-band controls: "band:add", or "band:{index}:{colour|min|max|del}" with a
+    /// trailing ":+" or ":-" for the steppers.
+    /// </summary>
+    private void ActivateBand(string id)
+    {
+        var parts = id.Split(':');
+        _config.CollectiveBands ??= new List<ColourBand>();
+        var bands = _config.CollectiveBands;
+
+        if (parts[1] == "add")
+        {
+            if (bands.Count < BandColours.Max)
+                bands.Add(new ColourBand { Min = 0, Max = 10, Colour = "Red" });
+            SaveAndRefresh();
+            return;
+        }
+
+        if (!int.TryParse(parts[1], out int index) || index < 0 || index >= bands.Count) return;
+        var band = bands[index];
+
+        const int step = 5;
+
+        switch (parts[2])
+        {
+            case "colour":
+                band.Colour = BandColours.Next(band.Colour);
+                break;
+
+            case "min":
+                band.Min = Math.Clamp(band.Min + (parts[3] == "+" ? step : -step), 0, 100);
+                if (band.Min > band.Max) band.Max = band.Min;
+                break;
+
+            case "max":
+                band.Max = Math.Clamp(band.Max + (parts[3] == "+" ? step : -step), 0, 100);
+                if (band.Max < band.Min) band.Min = band.Max;
+                break;
+
+            case "del":
+                bands.RemoveAt(index);
+                break;
+        }
+
+        SaveAndRefresh();
     }
 
     /// <summary>Anything that changes what is drawn can also change the measured size.</summary>

@@ -124,6 +124,7 @@ opacity can be changed without leaving the game:
 
 - **Everything** and **Background** opacity sliders, dragged live
 - **Show in capture list (OBS)**, **Button grid** and **Axis readouts** toggles
+- **Collective colour bands** on/off, the default colour, and the band editor
 - **Lock overlay**, **Reset position**, **Rescan devices**, **Open config folder**, **Exit**
 
 The tray icon keeps all of it too, plus Show/hide and the separate Opacity sliders window.
@@ -276,6 +277,9 @@ Work through the grip and base, note the numbers, then label them in the config 
 | `showDials` | Whether the F / M / C bar is drawn while unlocked. The top-left circle toggles it. |
 | `collectiveAxis` | Axis shown in Collective view. Defaults to `Slider`. |
 | `collectiveShowPercent` | `true` draws the % symbol, `false` leaves the bare number. The corner button toggles it. |
+| `collectiveText` | Colour when no band matches, and whenever banding is off. `White`, `Green`, `Yellow`, `Red`, or a hex value. |
+| `collectiveBandsEnabled` | Whether value-based colouring is applied at all. |
+| `collectiveBands` | The ranges, e.g. `[{ "min": 0, "max": 15, "colour": "Red" }]`. |
 | `collectiveWidth` / `collectiveHeight` | Collective view size once dragged. `0` derives it from the basis. |
 | `collectiveBackground` | Collective background colour. Defaults to `#101E3A`. |
 | `collectiveText` | Collective number colour. Defaults to `#FFFFFF`. |
@@ -305,6 +309,36 @@ A centre-origin bar also reads as a signed deviation - `0%` centred, `+56%` righ
 because "50%" for a centred yaw axis tells you nothing. Both settings work on vertical bars too,
 so `"centreOrigin": ["Z", "RZ"]` is fine if another axis self-centres.
 
+## Colouring the collective by value
+
+Switch on **Collective colour bands** in the settings page and the collective reading takes a
+colour that depends on its value. Four colours are available: **White**, **Green**, **Yellow**
+and **Red**.
+
+A band is a percentage range and a colour. Anything not covered by a band uses the **default
+colour**. So with `0-15` Red and `30-40` Yellow and a White default, 16-29 and 41-100 come out
+white, exactly as you would expect. Ranges are inclusive at both ends, and if two bands overlap
+the one listed first wins.
+
+The band editor gives each band a colour swatch that cycles White, Green, Yellow, Red, a stepper
+for each end of the range (5 % a click, clamped to 0-100, and the ends cannot cross), and a
+remove button. **Add colour band** appears until there are six. The rows are only shown when
+banding is on, so the page stays short when it is off.
+
+**The colour appears in every view**, not just Collective:
+
+| View | What is coloured |
+| --- | --- |
+| **Collective** | The number. |
+| **Full** and **Minimal** | The bar for `collectiveAxis` - its fill and its level line. Other gauges keep the normal cyan. |
+
+With banding off, nothing changes colour: the number uses `collectiveText` and the bars stay
+cyan. The banding is driven by the plain 0-100 % reading, so it is meant for a normal axis like
+the slider rather than a centre-origin one.
+
+The Collective number is drawn with a thin dark outline so it stays readable against a bright
+cockpit or over a translucent background.
+
 ### Inverted axes
 
 `invertAxes` flips a gauge without touching the input itself — the overlay still reports what
@@ -324,6 +358,7 @@ the hardware, and the overlay shows it as full.
 | `OverlayRenderer.cs` | All drawing. |
 | `OverlayRenderer.Modes.cs` | Collective view, the dials and the settings page. |
 | `ViewMode.cs` | The three views and the clickable-region types. |
+| `ColourBand.cs` | The colour bands and the four named colours. |
 | `LayeredSurface.cs` | The premultiplied ARGB DIB surface behind `UpdateLayeredWindow`. |
 | `SettingsForm.cs` | The opacity sliders. |
 | `OverlayConfig.cs` | JSON settings. |

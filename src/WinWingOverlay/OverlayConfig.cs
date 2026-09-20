@@ -112,9 +112,27 @@ internal sealed class OverlayConfig
     public int CollectiveWidth { get; set; }
     public int CollectiveHeight { get; set; }
 
-    /// <summary>Collective mode colours, as HTML hex.</summary>
+    /// <summary>Collective background, as HTML hex.</summary>
     public string CollectiveBackground { get; set; } = "#101E3A";
-    public string CollectiveText { get; set; } = "#FFFFFF";
+
+    /// <summary>
+    /// Colour of the reading when no band matches, and when banding is off. One of White,
+    /// Green, Yellow or Red, or any HTML hex value.
+    /// </summary>
+    public string CollectiveText { get; set; } = "White";
+
+    /// <summary>
+    /// Colour the collective reading by value. Off by default, in which case the number uses
+    /// <see cref="CollectiveText"/> and the gauges keep their normal accent.
+    /// </summary>
+    public bool CollectiveBandsEnabled { get; set; }
+
+    /// <summary>
+    /// Percentage ranges that override the colour, e.g. 0-15 Red. Inclusive at both ends;
+    /// the first band containing the value wins. Anything uncovered uses
+    /// <see cref="CollectiveText"/>.
+    /// </summary>
+    public List<ColourBand> CollectiveBands { get; set; } = new();
 
     /// <summary>
     /// The view, resolved from <see cref="Mode"/> and falling back to the legacy

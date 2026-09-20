@@ -202,10 +202,11 @@ internal sealed partial class OverlayRenderer : IDisposable
             foreach (var item in bottomBars)
             {
                 bool centre = CentreOriginSet(config).Contains(item.Label);
+                double reading = Value(device.State, item.Usage, centre ? 0.5 : 0.0, config);
                 DrawHBar(g, new RectangleF(gaugeArea.X, y, rowWidth, thickness),
-                    labels ? item.Label : null,
-                    Value(device.State, item.Usage, centre ? 0.5 : 0.0, config),
-                    labels && config.ShowAxisReadouts, centre, _fontTiny);
+                    labels ? item.Label : null, reading,
+                    labels && config.ShowAxisReadouts, centre, _fontTiny,
+                    item.Usage == CollectiveUsage(config) ? BandTint(config, reading * 100.0) : null);
                 y += thickness + metrics.Gap;
             }
 
@@ -469,9 +470,10 @@ internal sealed partial class OverlayRenderer : IDisposable
 
                 case GaugeKind.Bar:
                     bool centred = CentreOriginSet(config).Contains(item.Label);
-                    DrawBar(g, r, labels ? item.Label : null,
-                        Value(state, item.Usage, centred ? 0.5 : 0.0, config),
-                        labels && config.ShowAxisReadouts, centred, barFont);
+                    double reading = Value(state, item.Usage, centred ? 0.5 : 0.0, config);
+                    DrawBar(g, r, labels ? item.Label : null, reading,
+                        labels && config.ShowAxisReadouts, centred, barFont,
+                        item.Usage == CollectiveUsage(config) ? BandTint(config, reading * 100.0) : null);
                     break;
             }
 
@@ -610,8 +612,10 @@ internal sealed partial class OverlayRenderer : IDisposable
     }
 
     private void DrawBar(Graphics g, RectangleF r, string? label, double value, bool readout,
-        bool centreOrigin, Font font)
+        bool centreOrigin, Font font, Color? tint = null)
     {
+        var (soft, line) = tint is { } tinted ? Tint(tinted) : (_accentSoft, _accentPen);
+
         float labelH = label is not null && r.Height > 44 ? font.Height + 2f : 0f;
         float readoutH = readout && r.Height > 60 ? font.Height + 2f : 0f;
         var track = new RectangleF(r.X, r.Y + labelH, r.Width, r.Height - labelH - readoutH);
@@ -628,8 +632,8 @@ internal sealed partial class OverlayRenderer : IDisposable
         float top = Math.Min(origin, y);
         float height = Math.Abs(origin - y);
         if (height > 0.5f)
-            g.FillRectangle(_accentSoft, new RectangleF(track.X + 1, top, track.Width - 1, height));
-        g.DrawLine(_accentPen, track.X + 1, y, track.Right - 1, y);
+            g.FillRectangle(soft, new RectangleF(track.X + 1, top, track.Width - 1, height));
+        g.DrawLine(line, track.X + 1, y, track.Right - 1, y);
 
         if (labelH > 0)
             g.DrawString(label!, font, _textDim, new RectangleF(r.X, r.Y, r.Width, labelH), _centreTight);
@@ -644,8 +648,10 @@ internal sealed partial class OverlayRenderer : IDisposable
     /// whichever side the axis has moved, which is how a yaw axis reads naturally.
     /// </summary>
     private void DrawHBar(Graphics g, RectangleF r, string? label, double value, bool readout,
-        bool centreOrigin, Font font)
+        bool centreOrigin, Font font, Color? tint = null)
     {
+        var (soft, line) = tint is { } tinted ? Tint(tinted) : (_accentSoft, _accentPen);
+
         float labelW = label is null ? 0f : MeasureText(g, label, font) + 6f;
         float readoutW = readout ? MeasureText(g, centreOrigin ? "-100%" : "100%", font) + 6f : 0f;
 
@@ -664,8 +670,8 @@ internal sealed partial class OverlayRenderer : IDisposable
         float left = Math.Min(origin, x);
         float width = Math.Abs(origin - x);
         if (width > 0.5f)
-            g.FillRectangle(_accentSoft, new RectangleF(left, track.Y + 1, width, track.Height - 1));
-        g.DrawLine(_accentPen, x, track.Y + 1, x, track.Bottom - 1);
+            g.FillRectangle(soft, new RectangleF(left, track.Y + 1, width, track.Height - 1));
+        g.DrawLine(line, x, track.Y + 1, x, track.Bottom - 1);
 
         if (label is not null)
             g.DrawString(label, font, _textDim, new RectangleF(r.X, r.Y, labelW, r.Height), _leftTight);

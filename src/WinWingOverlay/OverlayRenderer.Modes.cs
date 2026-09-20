@@ -10,23 +10,45 @@ namespace WinWingOverlay;
 /// </summary>
 internal sealed partial class OverlayRenderer
 {
-    private enum MenuRowKind { Slider, Toggle, Button }
+    private enum MenuRowKind { Slider, Toggle, Button, Colour, Band }
 
     private readonly record struct MenuRow(string Id, string Label, MenuRowKind Kind);
 
-    private static readonly MenuRow[] Rows =
+    /// <summary>
+    /// The settings page, built fresh each time because the colour bands only appear when
+    /// banding is switched on, and there is one row per band.
+    /// </summary>
+    private static List<MenuRow> BuildRows(OverlayConfig config)
     {
-        new("opacity", "Everything", MenuRowKind.Slider),
-        new("bgopacity", "Background", MenuRowKind.Slider),
-        new("obs", "Show in capture list (OBS)", MenuRowKind.Toggle),
-        new("buttons", "Button grid", MenuRowKind.Toggle),
-        new("readouts", "Axis readouts", MenuRowKind.Toggle),
-        new("lock", "Lock overlay", MenuRowKind.Button),
-        new("reset", "Reset position", MenuRowKind.Button),
-        new("rescan", "Rescan devices", MenuRowKind.Button),
-        new("config", "Open config folder", MenuRowKind.Button),
-        new("exit", "Exit overlay", MenuRowKind.Button)
-    };
+        var rows = new List<MenuRow>
+        {
+            new("opacity", "Everything", MenuRowKind.Slider),
+            new("bgopacity", "Background", MenuRowKind.Slider),
+            new("obs", "Show in capture list (OBS)", MenuRowKind.Toggle),
+            new("buttons", "Button grid", MenuRowKind.Toggle),
+            new("readouts", "Axis readouts", MenuRowKind.Toggle),
+            new("bands", "Collective colour bands", MenuRowKind.Toggle),
+            new("colour", "Default colour", MenuRowKind.Colour)
+        };
+
+        if (config.CollectiveBandsEnabled)
+        {
+            int count = config.CollectiveBands?.Count ?? 0;
+            for (int i = 0; i < count; i++)
+                rows.Add(new MenuRow($"band:{i}", "", MenuRowKind.Band));
+
+            if (count < BandColours.Max)
+                rows.Add(new MenuRow("band:add", "Add colour band", MenuRowKind.Button));
+        }
+
+        rows.Add(new MenuRow("lock", "Lock overlay", MenuRowKind.Button));
+        rows.Add(new MenuRow("reset", "Reset position", MenuRowKind.Button));
+        rows.Add(new MenuRow("rescan", "Rescan devices", MenuRowKind.Button));
+        rows.Add(new MenuRow("config", "Open config folder", MenuRowKind.Button));
+        rows.Add(new MenuRow("exit", "Exit overlay", MenuRowKind.Button));
+
+        return rows;
+    }
 
     /// <summary>Clickable regions from the most recent render. Empty while locked.</summary>
     public List<HitRegion> Hits { get; } = new();
@@ -38,6 +60,15 @@ internal sealed partial class OverlayRenderer
 
     private Bitmap? _scratch;
     private Graphics? _measure;
+
+    private Color _tintColour = Color.Empty;
+    private SolidBrush? _tintSoft;
+    private Pen? _tintPen;
+
+    // The settings page keeps a fixed size regardless of how large the overlay is, so it stays
+    // a sane shape on screen once the colour bands are listed on it.
+    private readonly Font _menuFont = new("Segoe UI", 14f, FontStyle.Regular, GraphicsUnit.Pixel);
+    private readonly Font _menuTitleFont = new("Segoe UI Semibold", 17f, FontStyle.Regular, GraphicsUnit.Pixel);
 
     /// <summary>A throwaway surface purely for text measurement outside a paint pass.</summary>
     private Graphics Measure()
@@ -53,8 +84,51 @@ internal sealed partial class OverlayRenderer
     private static Color ParseColour(string? text, Color fallback)
     {
         if (string.IsNullOrWhiteSpace(text)) return fallback;
+
+        var named = BandColours.Value(text);
+        if (named != Color.Empty) return named;
+
         try { return ColorTranslator.FromHtml(text.Trim()); }
         catch { return fallback; }
+    }
+
+    private static ushort CollectiveUsage(OverlayConfig config) =>
+        BarUsageFor(string.IsNullOrWhiteSpace(config.CollectiveAxis) ? "Slider" : config.CollectiveAxis.Trim());
+
+    /// <summary>
+    /// Colour for a collective reading, or null when banding is off so the caller keeps its own
+    /// default. This is what makes the same colour appear on the number in Collective view and
+    /// on the collective bar in the other views.
+    /// </summary>
+    public Color? BandTint(OverlayConfig config, double percent)
+    {
+        if (!config.CollectiveBandsEnabled) return null;
+
+        if (config.CollectiveBands is { Count: > 0 })
+        {
+            foreach (var band in config.CollectiveBands)
+            {
+                int low = Math.Min(band.Min, band.Max);
+                int high = Math.Max(band.Min, band.Max);
+                if (percent >= low && percent <= high) return ParseColour(band.Colour, Color.White);
+            }
+        }
+
+        return ParseColour(config.CollectiveText, Color.White);
+    }
+
+    /// <summary>Cached fill and line for a banded gauge. Only one bar is ever tinted at a time.</summary>
+    private (SolidBrush Soft, Pen Line) Tint(Color colour)
+    {
+        if (_tintSoft is null || _tintPen is null || _tintColour != colour)
+        {
+            _tintSoft?.Dispose();
+            _tintPen?.Dispose();
+            _tintColour = colour;
+            _tintSoft = new SolidBrush(Color.FromArgb(52, colour));
+            _tintPen = new Pen(colour, 1.6f);
+        }
+        return (_tintSoft, _tintPen);
     }
 
     // ---- Collective ------------------------------------------------------
@@ -109,18 +183,22 @@ internal sealed partial class OverlayRenderer
         using (var border = new Pen(locked ? Color.FromArgb(46, 66, 104) : Accent, locked ? 1f : 2f))
             g.DrawRectangle(border, 0, 0, client.Width - 1, client.Height - 1);
 
-        ushort usage = BarUsageFor(string.IsNullOrWhiteSpace(config.CollectiveAxis)
-            ? "Slider"
-            : config.CollectiveAxis.Trim());
+        ushort usage = CollectiveUsage(config);
 
         string text = "--";
+        Color colour = ParseColour(config.CollectiveText, Color.White);
+
         if (device is not null && usage != 0 && device.Axes.Any(a => a.Usage == usage))
         {
             bool centred = CentreOriginSet(config).Contains(AxisInfo.NameFor(usage));
-            text = Readout(Value(device.State, usage, centred ? 0.5 : 0.0, config), centred);
+            double value = Value(device.State, usage, centred ? 0.5 : 0.0, config);
+
+            text = Readout(value, centred);
 
             // The corner button only drops the symbol; the value stays a percentage.
             if (!config.CollectiveShowPercent) text = text.TrimEnd('%');
+
+            colour = BandTint(config, value * 100.0) ?? colour;
         }
 
         var area = new RectangleF(client.X, client.Y, client.Width,
@@ -143,8 +221,17 @@ internal sealed partial class OverlayRenderer
 
         var font = CollectiveFontPx(MathF.Round(px));
 
-        using var brush = new SolidBrush(ParseColour(config.CollectiveText, Color.White));
-        g.DrawString(text, font, brush, area, _centreTight);
+        // Outline first, fill second: a thin dark stroke keeps the number legible against a
+        // bright cockpit or a translucent background.
+        using var path = new GraphicsPath();
+        path.AddString(text, font.FontFamily, (int)font.Style, font.Size, area, _centreTight);
+
+        using (var outline = new Pen(Color.FromArgb(215, 0, 0, 0), Math.Max(1.2f, font.Size * 0.05f))
+               { LineJoin = LineJoin.Round })
+            g.DrawPath(outline, path);
+
+        using (var fill = new SolidBrush(colour))
+            g.FillPath(fill, path);
 
         if (!locked) DrawPercentToggle(g, client, config, basis);
     }
@@ -277,46 +364,47 @@ internal sealed partial class OverlayRenderer
 
     // ---- Settings page ---------------------------------------------------
 
-    private (float Pad, float RowH, float Gap, float TitleH, float LabelW, Size Size) MenuMetrics(Size basis)
+    private (float Pad, float RowH, float Gap, float TitleH, float LabelW, List<MenuRow> Rows, Size Size)
+        MenuLayout(Size basis, OverlayConfig config)
     {
-        EnsureFonts(basis.Height);
+        var rows = BuildRows(config);
 
-        float pad = Math.Max(8f, basis.Height * 0.028f);
-        float rowH = _fontSmall.Height + 12f;
-        float gap = Math.Max(4f, rowH * 0.16f);
-        float titleH = _fontTitle.Height + 6f;
+        float pad = 12f;
+        float rowH = _menuFont.Height + 12f;
+        float gap = 6f;
+        float titleH = _menuTitleFont.Height + 6f;
 
         float labelW = 0f;
         var g = Measure();
-        foreach (var row in Rows)
-            if (row.Kind != MenuRowKind.Button)
-                labelW = Math.Max(labelW, MeasureText(g, row.Label, _fontSmall));
+        foreach (var row in rows)
+            if (row.Kind is MenuRowKind.Slider or MenuRowKind.Toggle or MenuRowKind.Colour)
+                labelW = Math.Max(labelW, MeasureText(g, row.Label, _menuFont));
         labelW += pad;
 
-        float width = Math.Clamp(labelW + 150f + pad * 2f, 300f, 460f);
-        float height = pad + titleH + Rows.Length * (rowH + gap)
+        float width = Math.Clamp(labelW + 170f + pad * 2f, 330f, 480f);
+        float height = pad + titleH + rows.Count * (rowH + gap)
                        + DialDiameter(basis) + pad * 2f;
 
-        return (pad, rowH, gap, titleH, labelW,
+        return (pad, rowH, gap, titleH, labelW, rows,
             new Size((int)Math.Ceiling(width), (int)Math.Ceiling(height)));
     }
 
-    public Size MeasureMenu(Size basis) => MenuMetrics(basis).Size;
+    public Size MeasureMenu(Size basis, OverlayConfig config) => MenuLayout(basis, config).Size;
 
     private void DrawMenuPage(Graphics g, Rectangle client, OverlayConfig config, Size basis, bool locked)
     {
-        var (pad, rowH, gap, titleH, labelW, _) = MenuMetrics(basis);
+        var (pad, rowH, gap, titleH, labelW, rows, _) = MenuLayout(basis, config);
 
         g.FillRectangle(_bg, client);
         using (var border = new Pen(locked ? Edge : Accent, locked ? 1f : 2f))
             g.DrawRectangle(border, 0, 0, client.Width - 1, client.Height - 1);
 
-        g.DrawString("Overlay settings", _fontTitle, _text, pad, pad * 0.5f);
+        g.DrawString("Overlay settings", _menuTitleFont, _text, pad, pad * 0.5f);
 
         float y = pad * 0.5f + titleH;
         float right = client.Width - pad;
 
-        foreach (var row in Rows)
+        foreach (var row in rows)
         {
             var area = new RectangleF(pad, y, right - pad, rowH);
 
@@ -335,11 +423,20 @@ internal sealed partial class OverlayRenderer
                     {
                         "obs" => config.ShowInWindowList,
                         "buttons" => config.ShowButtons,
+                        "bands" => config.CollectiveBandsEnabled,
                         _ => config.ShowAxisReadouts
                     };
                     DrawMenuToggle(g, area, row, labelW, on);
                     break;
                 }
+
+                case MenuRowKind.Colour:
+                    DrawMenuColour(g, area, labelW, config);
+                    break;
+
+                case MenuRowKind.Band:
+                    DrawMenuBand(g, area, int.Parse(row.Id.AsSpan(5)), config);
+                    break;
 
                 default:
                     DrawMenuButton(g, area, row);
@@ -350,13 +447,98 @@ internal sealed partial class OverlayRenderer
         }
     }
 
+    /// <summary>The four colour choices for readings that fall outside every band.</summary>
+    private void DrawMenuColour(Graphics g, RectangleF area, float labelW, OverlayConfig config)
+    {
+        g.DrawString("Default colour", _menuFont, _textDim,
+            new RectangleF(area.X, area.Y, labelW, area.Height), _leftTight);
+
+        float d = area.Height * 0.56f;
+        float gap = d * 0.5f;
+        float x = area.Right - (BandColours.Names.Length * d + (BandColours.Names.Length - 1) * gap);
+
+        foreach (string name in BandColours.Names)
+        {
+            var rect = new RectangleF(x, area.Y + (area.Height - d) / 2f, d, d);
+            bool selected = BandColours.IsName(config.CollectiveText, name);
+
+            using (var swatch = new SolidBrush(BandColours.Value(name)))
+                g.FillEllipse(swatch, rect);
+
+            g.DrawEllipse(selected ? _accentPen : _gridPen, rect);
+            if (selected) g.DrawEllipse(_accentPen, RectangleF.Inflate(rect, 3f, 3f));
+
+            Hits.Add(new HitRegion("colour:" + name, RectangleF.Inflate(rect, 3f, 3f), HitKind.Button));
+            x += d + gap;
+        }
+    }
+
+    /// <summary>One band: colour swatch, a stepper for each end of the range, and a remove button.</summary>
+    private void DrawMenuBand(Graphics g, RectangleF area, int index, OverlayConfig config)
+    {
+        var bands = config.CollectiveBands;
+        if (bands is null || index < 0 || index >= bands.Count) return;
+
+        var band = bands[index];
+        float h = area.Height;
+        float swatch = h * 0.6f;
+        float btn = h * 0.74f;
+        float valueW = MeasureText(g, "100", _menuFont) + 10f;
+        float gap = 4f;
+
+        var swatchRect = new RectangleF(area.X, area.Y + (h - swatch) / 2f, swatch, swatch);
+        using (var fill = new SolidBrush(ParseColour(band.Colour, Color.White)))
+            g.FillEllipse(fill, swatchRect);
+        g.DrawEllipse(_gridPen, swatchRect);
+        Hits.Add(new HitRegion($"band:{index}:colour", swatchRect, HitKind.Button));
+
+        float x = swatchRect.Right + gap * 2f;
+        x = DrawStepper(g, x, area, btn, valueW, band.Min, $"band:{index}:min");
+
+        g.DrawString("-", _menuFont, _textDim, new RectangleF(x, area.Y, gap * 3f, h), _centreTight);
+        x += gap * 3f;
+
+        x = DrawStepper(g, x, area, btn, valueW, band.Max, $"band:{index}:max");
+
+        var remove = new RectangleF(area.Right - btn, area.Y + (h - btn) / 2f, btn, btn);
+        SmallButton(g, remove, "x", $"band:{index}:del");
+    }
+
+    private float DrawStepper(Graphics g, float x, RectangleF area, float btn, float valueW,
+        int value, string id)
+    {
+        float y = area.Y + (area.Height - btn) / 2f;
+
+        SmallButton(g, new RectangleF(x, y, btn, btn), "-", id + ":-");
+        x += btn;
+
+        g.DrawString(value.ToString(), _menuFont, _text,
+            new RectangleF(x, area.Y, valueW, area.Height), _centreTight);
+        x += valueW;
+
+        SmallButton(g, new RectangleF(x, y, btn, btn), "+", id + ":+");
+        return x + btn;
+    }
+
+    private void SmallButton(Graphics g, RectangleF rect, string glyph, string id)
+    {
+        using (var path = RoundedRect(rect, rect.Height * 0.3f))
+        {
+            g.FillPath(_panel, path);
+            g.DrawPath(_gridPen, path);
+        }
+
+        g.DrawString(glyph, _menuFont, _text, rect, _centreTight);
+        Hits.Add(new HitRegion(id, rect, HitKind.Button));
+    }
+
     private void DrawMenuSlider(Graphics g, RectangleF area, MenuRow row, float labelW, double value)
     {
-        g.DrawString(row.Label, _fontSmall, _textDim,
+        g.DrawString(row.Label, _menuFont, _textDim,
             new RectangleF(area.X, area.Y, labelW, area.Height), _leftTight);
 
         float knob = area.Height * 0.28f;
-        float readoutW = MeasureText(g, "100%", _fontSmall) + 10f;
+        float readoutW = MeasureText(g, "100%", _menuFont) + 10f;
 
         // Inset by the knob radius at both ends so a knob at 0 % or 100 % stays inside the row.
         var track = new RectangleF(area.X + labelW + knob, area.Y + area.Height * 0.35f,
@@ -371,7 +553,7 @@ internal sealed partial class OverlayRenderer
 
         g.FillEllipse(_accent, x - knob, track.Y + track.Height / 2f - knob, knob * 2, knob * 2);
 
-        g.DrawString($"{value * 100:0}%", _fontSmall, _text,
+        g.DrawString($"{value * 100:0}%", _menuFont, _text,
             new RectangleF(area.Right - readoutW, area.Y, readoutW, area.Height), _rightTight);
 
         // Grab anywhere on the row height, not just the thin track.
@@ -381,7 +563,7 @@ internal sealed partial class OverlayRenderer
 
     private void DrawMenuToggle(Graphics g, RectangleF area, MenuRow row, float labelW, bool on)
     {
-        g.DrawString(row.Label, _fontSmall, _textDim,
+        g.DrawString(row.Label, _menuFont, _textDim,
             new RectangleF(area.X, area.Y, labelW, area.Height), _leftTight);
 
         float h = area.Height * 0.52f;
@@ -410,7 +592,7 @@ internal sealed partial class OverlayRenderer
             g.DrawPath(_gridPen, path);
         }
 
-        g.DrawString(row.Label, _fontSmall, _text, area, _centreTight);
+        g.DrawString(row.Label, _menuFont, _text, area, _centreTight);
         Hits.Add(new HitRegion(row.Id, area, HitKind.Button));
     }
 
@@ -418,6 +600,10 @@ internal sealed partial class OverlayRenderer
     {
         _bigFont?.Dispose();
         _dialFont?.Dispose();
+        _menuFont.Dispose();
+        _menuTitleFont.Dispose();
+        _tintSoft?.Dispose();
+        _tintPen?.Dispose();
         _measure?.Dispose();
         _scratch?.Dispose();
     }
