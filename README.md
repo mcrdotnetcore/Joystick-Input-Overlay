@@ -10,6 +10,11 @@ no code changes to support a new stick.
 | ![Full view](docs/full.png) | ![Minimal view](docs/minimal.png) | ![Collective view](docs/collective.png) |
 | Every input the device reports | A crop of Full, trimmed to what you want mid-flight | One axis as a large number |
 
+| Settings page | Tray menu |
+| :---: | :---: |
+| ![Settings page](docs/settings.png) | ![Tray menu](docs/tray.png) |
+| Opacity, colour bands and the rest, without leaving the game | The same options from the notification area |
+
 Built and tested against a WINWING Ursa Minor and a vJoy virtual stick; the screenshots above
 are a vJoy device, which is why the button count is 50 rather than the Ursa Minor's 128.
 
