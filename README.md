@@ -13,6 +13,16 @@ no code changes to support a new stick.
 Built and tested against a WINWING Ursa Minor and a vJoy virtual stick; the screenshots above
 are a vJoy device, which is why the button count is 50 rather than the Ursa Minor's 128.
 
+## Download
+
+Grab **JoystickInputOverlay.exe** from the
+[latest release](https://github.com/mcrdotnetcore/Joystick-Input-Overlay/releases/latest)
+and run it. One file, nothing to install - the .NET runtime is bundled inside it.
+
+Windows will show **"Windows protected your PC"** the first time, because the file is not code
+signed. Click **More info**, then **Run anyway**. That warning is about the absence of a paid
+signing certificate, not about anything the program does.
+
 ## Design goals
 
 **Lowest possible cost while gaming.** Input arrives as `WM_INPUT` messages, so the process
@@ -46,8 +56,31 @@ Open `JoystickInputOverlay.sln` in Visual Studio 2022, or from a terminal:
 Build.cmd
 ```
 
-That produces a single `dist\JoystickInputOverlay.exe` (framework-dependent; needs the .NET 8 Desktop
-Runtime, which is already installed here).
+That produces `dist\JoystickInputOverlay.exe`: a 240 KB launcher that needs the .NET 8 Desktop
+Runtime installed. Fine for working on the code, useless to someone who does not have the
+runtime.
+
+For something anyone can download and run:
+
+```
+Publish-Release.cmd
+```
+
+That produces a single self-contained `release\JoystickInputOverlay.exe` of about 63 MB with the
+runtime bundled inside, verified to start in a folder containing nothing else. Both `dist\` and
+`release\` are gitignored - build output does not belong in the repository.
+
+### Cutting a release
+
+1. `Publish-Release.cmd`
+2. On GitHub: **Releases**, **Draft a new release**
+3. **Choose a tag**, type a new one such as `v1.0.0`, and pick **Create new tag on publish**
+4. Give it a title and a short list of what changed
+5. Drag `release\JoystickInputOverlay.exe` into the attachments box
+6. **Publish release**
+
+The `/releases/latest` link above then resolves to it, so the download line in this README never
+needs updating.
 
 ## Run
 
