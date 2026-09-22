@@ -35,6 +35,7 @@ internal sealed class OverlayForm : Form
 
     private SettingsForm? _settings;
     private JoystickDevice? _device;
+    private DateTime _deviceActivity = DateTime.MinValue;
     private bool _dirty = true;
     private int _idleTicks;
     private bool _locked;
@@ -269,6 +270,12 @@ internal sealed class OverlayForm : Form
     private static bool Matches(string? actual, string? wanted) =>
         actual is not null && Hotkey.TryParse(wanted, out var w) && string.Equals(actual, w.ToString(), StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// How long the current device must be quiet before a different one that is being used
+    /// takes over. Long enough that two simultaneously active devices never flap.
+    /// </summary>
+    private const int DeviceHandoverMs = 750;
+
     private void SelectDevice()
     {
         var devices = _input.Devices.ToList();
@@ -278,19 +285,39 @@ internal sealed class OverlayForm : Form
                      (_config.VendorId == 0 || d.VendorId == (uint)_config.VendorId) &&
                      (_config.ProductId == 0 || d.ProductId == (uint)_config.ProductId))
                  ?? devices[0];
+
+        _deviceActivity = DateTime.MinValue;
+    }
+
+    /// <summary>Show this device from now on, and resize for the gauges it actually has.</summary>
+    private void AdoptDevice(JoystickDevice device)
+    {
+        _device = device;
+        _deviceActivity = DateTime.UtcNow;
+
+        ApplyModeSize();
+        UpdateTrayText();
     }
 
     private void OnDeviceUpdated(JoystickDevice device)
     {
+        var now = DateTime.UtcNow;
+
         if (_device is null)
         {
-            _device = device;
-            // The minimal size depends on which gauges the device actually has.
-            if (_mode != ViewMode.Full) ApplyModeSize();
-            UpdateTrayText();
+            // The measured size depends on which gauges the device actually has.
+            AdoptDevice(device);
         }
+        else if (device != _device && _config.AutoSelectDevice &&
+                 (now - _deviceActivity).TotalMilliseconds > DeviceHandoverMs)
+        {
+            // Whatever we were watching has gone quiet and something else is being used.
+            AdoptDevice(device);
+        }
+
         if (device != _device) return;
 
+        _deviceActivity = now;
         _dirty = true;
         _idleTicks = 0;
         if (!_frameTimer.Enabled && Visible) _frameTimer.Start();

@@ -313,9 +313,16 @@ internal sealed partial class OverlayRenderer : IDisposable
     private static bool HidesLabels(OverlayConfig config, bool minimal) =>
         Hides(config, minimal, "Labels");
 
-    private static bool Hides(OverlayConfig config, bool minimal, string token) =>
-        minimal && config.MinimalHides is { Count: > 0 } &&
-        config.MinimalHides.Any(h => string.Equals(h?.Trim(), token, StringComparison.OrdinalIgnoreCase));
+    private static bool Hides(OverlayConfig config, bool minimal, string token)
+    {
+        // hideAxes applies to every view; minimalHides only to the minimal crop.
+        if (Lists(config.HideAxes, token)) return true;
+        return minimal && Lists(config.MinimalHides, token);
+    }
+
+    private static bool Lists(List<string>? tokens, string token) =>
+        tokens is { Count: > 0 } &&
+        tokens.Any(t => string.Equals(t?.Trim(), token, StringComparison.OrdinalIgnoreCase));
 
     private List<GaugeItem> BuildItems(JoystickDevice device, OverlayConfig config, bool minimal)
     {

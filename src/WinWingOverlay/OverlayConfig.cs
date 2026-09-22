@@ -29,9 +29,25 @@ internal sealed class OverlayConfig
     /// <summary>When locked the window is click-through and cannot be moved or resized.</summary>
     public bool Locked { get; set; } = true;
 
-    /// <summary>Vendor / product id of the device to display. 0 means "first joystick found".</summary>
+    /// <summary>
+    /// Follow whichever device is actually sending input, switching to it once the current one
+    /// has gone quiet. This is what makes the overlay work with a remapper such as Joystick
+    /// Gremlin, where the interesting device is the virtual one rather than the physical stick.
+    /// </summary>
+    public bool AutoSelectDevice { get; set; } = true;
+
+    /// <summary>
+    /// Vendor / product id preferred at startup. 0 means "first joystick found". With
+    /// <see cref="AutoSelectDevice"/> on, this only decides the initial pick.
+    /// </summary>
     public int VendorId { get; set; } = 0x4098;   // WINWING
     public int ProductId { get; set; } = 0;       // any WINWING device
+
+    /// <summary>
+    /// Gauges never drawn, in any view. Same tokens as <see cref="MinimalHides"/>. Useful when
+    /// a device declares axes nothing is mapped to, as a vJoy stick does.
+    /// </summary>
+    public List<string> HideAxes { get; set; } = new();
 
     /// <summary>Buttons drawn in the grid. 0 auto-sizes to the highest button the device declares.</summary>
     public int ButtonCount { get; set; } = 0;
@@ -75,7 +91,8 @@ internal sealed class OverlayConfig
     /// What the minimal view hides. Tokens: Title (the top row), Labels (the small gauge
     /// captions and percentages), Buttons, XY, RXRY, HAT, or an axis name.
     /// </summary>
-    public List<string> MinimalHides { get; set; } = new() { "Buttons", "HAT", "RXRY", "Title" };
+    public List<string> MinimalHides { get; set; } =
+        new() { "Buttons", "HAT", "RXRY", "Title", "RZ", "Dial" };
 
     /// <summary>
     /// Global hotkeys. If a combination is already owned by another program the overlay

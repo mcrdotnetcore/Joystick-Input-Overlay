@@ -84,8 +84,10 @@ large number. It is sized against the reading currently on screen rather than th
 one, which is what makes a tiny window usable - the trade-off being that short readings draw
 larger than long ones, so the number changes size as it crosses 10 % and 100 %.
 
-**Minimal view** drops the title row, the button grid, the hat and the RX/RY mini-stick,
-leaving just the X/Y box and the Z and Slider bars.
+**Minimal view** drops the title row, the button grid, the hat, the RX/RY mini-stick and the
+RZ and Dial bars, leaving just the X/Y box and the Z and Slider bars. RZ and Dial are in that
+list because a vJoy device declares them whether or not a remapper feeds them; a device that
+does not report them is unaffected either way.
 
 Change what it hides with `minimalHides`. The tokens are:
 
@@ -233,6 +235,29 @@ For a background-free look, either:
 Which works best depends on your OBS version and how it handles alpha on layered windows, so
 try Screen first - it needs no tuning.
 
+## Remappers and virtual devices
+
+The overlay follows **whichever device is actually sending input**. If the one it is showing
+goes quiet for about three quarters of a second and a different one is being used, it switches
+to that. `vendorId` / `productId` only decide the initial pick. Set `autoSelectDevice` to
+`false` to pin it to that pick instead.
+
+This matters with a remapper such as **Joystick Gremlin**, which reads the physical stick and
+drives a **vJoy** virtual one. The virtual device is what the game sees, so it is usually what
+you want on screen - and if **HidHide** is in the mix, the physical stick is hidden from
+everything not on HidHide's whitelist, so the overlay cannot see it at all.
+
+Two consequences worth knowing:
+
+- A vJoy stick declares **all eight axes** (X, Y, Z, RX, RY, RZ, Slider, Dial) and a fixed
+  button count regardless of what the remapper maps. Unmapped axes therefore sit motionless.
+  Drop them with `hideAxes`, e.g. `"hideAxes": ["RZ", "Dial"]`.
+- The device name in the title row tells you which one is on screen. The tray tooltip shows it
+  too, which is handy in the views that hide the title.
+
+To see the physical stick instead, add `WinWingOverlay.exe` to HidHide's whitelist in its
+Configuration Client.
+
 ## Mapping your controls
 
 ```
@@ -260,7 +285,9 @@ Work through the grip and base, note the numbers, then label them in the config 
 | `opacity` | Overall, 0.15 - 1.0. Scales every pixel. |
 | `backgroundOpacity` | Panel fills only, 0.0 - 1.0. Outlines, text and live values stay solid. |
 | `locked` | Start locked (click-through). |
-| `vendorId` / `productId` | Which device to show. `16536` is WINWING; `0` means "any". |
+| `autoSelectDevice` | Follow whichever device is sending input. `true` by default. |
+| `vendorId` / `productId` | Device preferred at startup. `16536` is WINWING; `0` means "any". |
+| `hideAxes` | Gauges never drawn, in any view. Same tokens as `minimalHides`. |
 | `buttonCount` | Buttons drawn in the grid. `0` auto-sizes to the 128 the stick declares — set it to `32` or so if you only use the first block and want bigger cells. |
 | `showButtons` | Hide the button grid entirely for a compact axes-only readout. |
 | `showAxisReadouts` | Percentage text under each bar. |
@@ -270,7 +297,7 @@ Work through the grip and base, note the numbers, then label them in the config 
 | `invertAxes` | Axes drawn upside down. Defaults to `["Slider"]`. |
 | `bottomBars` | Axes drawn as a full-width horizontal bar under the row. Defaults to `["Z"]`. |
 | `centreOrigin` | Bars filling outward from centre, with a signed readout. Defaults to `["Z"]`. |
-| `minimalHides` | What minimal view hides. Defaults to `["Buttons","HAT","RXRY","Title"]`. |
+| `minimalHides` | What minimal view hides. Defaults to `["Buttons","HAT","RXRY","Title","RZ","Dial"]`. |
 | `hotkeys` | See "If a hotkey does nothing" above. |
 | `mode` | Start-up view: `Full`, `Minimal` or `Collective`. Supersedes `minimal`. |
 | `minimal` | Legacy start-in-minimal flag, still honoured when `mode` is absent. |
