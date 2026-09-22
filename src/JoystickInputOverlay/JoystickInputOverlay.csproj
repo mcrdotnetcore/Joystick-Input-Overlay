@@ -6,8 +6,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>WinWingOverlay</AssemblyName>
-    <RootNamespace>WinWingOverlay</RootNamespace>
+    <AssemblyName>JoystickInputOverlay</AssemblyName>
+    <RootNamespace>JoystickInputOverlay</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <InvariantGlobalization>true</InvariantGlobalization>

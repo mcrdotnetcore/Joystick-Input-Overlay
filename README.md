@@ -1,17 +1,17 @@
-# WinWing Ursa Minor — Input Overlay
+# Joystick Input Overlay
 
-A transparent, always-on-top overlay that shows live stick, axis, hat and button input
-from a WINWING Ursa Minor (or any other HID joystick) while you play.
+A transparent, always-on-top overlay that shows live stick, axis, hat and button input from
+**any HID joystick** while you play. It reads the device's own HID report descriptor, so the
+gauges it draws are whatever that device actually reports - no per-device configuration, and
+no code changes to support a new stick.
 
-Detected on this machine:
+| Full | Minimal | Collective |
+| :---: | :---: | :---: |
+| ![Full view](docs/full.png) | ![Minimal view](docs/minimal.png) | ![Collective view](docs/collective.png) |
+| Every input the device reports | A crop of Full, trimmed to what you want mid-flight | One axis as a large number |
 
-```
-WINCTRL URSA MINOR Combat Joystick R    VID:PID 4098:BC2A
-128 buttons
-X, Y, Z         16-bit, 0..65535
-RX, RY, Slider  0..4095
-Hat             0..7
-```
+Built and tested against a WINWING Ursa Minor and a vJoy virtual stick; the screenshots above
+are a vJoy device, which is why the button count is 50 rather than the Ursa Minor's 128.
 
 ## Design goals
 
@@ -40,18 +40,18 @@ not a keyboard hook) for the lock and hide shortcuts.
 
 ## Build
 
-Open `WinWingOverlay.sln` in Visual Studio 2022, or from a terminal:
+Open `JoystickInputOverlay.sln` in Visual Studio 2022, or from a terminal:
 
 ```
 Build.cmd
 ```
 
-That produces a single `dist\WinWingOverlay.exe` (framework-dependent; needs the .NET 8 Desktop
+That produces a single `dist\JoystickInputOverlay.exe` (framework-dependent; needs the .NET 8 Desktop
 Runtime, which is already installed here).
 
 ## Run
 
-Double-click `dist\WinWingOverlay.exe`. It starts **locked**: click-through, always on top,
+Double-click `dist\JoystickInputOverlay.exe`. It starts **locked**: click-through, always on top,
 and it never steals focus from the game.
 
 | Shortcut | Action |
@@ -160,8 +160,8 @@ Modifiers are `Ctrl`, `Alt`, `Shift`, `Win` and at least one is required. Key na
 
 ### Troubleshooting
 
-Set the `WINWING_TRACE` environment variable to any value and the overlay appends window sizing
-events to `%TEMP%\winwing-trace.log`. Useful if the window ever comes up the wrong size.
+Set the `JOYSTICK_OVERLAY_TRACE` environment variable to any value and the overlay appends window sizing
+events to `%TEMP%\joystick-overlay-trace.log`. Useful if the window ever comes up the wrong size.
 
 ## Moving and resizing
 
@@ -213,10 +213,13 @@ way, so it still never appears on the taskbar or in alt-tab.
 Then in OBS:
 
 1. Sources, **+**, **Window Capture**. Not Game Capture - that is for Direct3D games.
-2. Window: `[WinWingOverlay.exe]: WinWing Overlay`
+2. Window: `[JoystickInputOverlay.exe]: Joystick Input Overlay`
 3. **Capture Method: "Windows 10 (1903 and up)"**. This matters - the older BitBlt method
    cannot capture a layered window and gives you a black rectangle.
-4. Window Match Priority: "Match title, otherwise find window of same executable".
+4. Window Match Priority: **"Match title, otherwise find window of same executable"**. This one
+   matters more than it looks: the window class is a WinForms name ending in a per-build hash,
+   like `WindowsForms10.Window.8.app.0.25bb5ff_r3_ad1`, and that hash changes when the app is
+   rebuilt. Matching on class would break after every build; matching on the executable will not.
 5. Uncheck Capture Cursor.
 
 Because that capture method reads the window directly, the overlay does not have to be visible
@@ -259,7 +262,7 @@ Two consequences worth knowing:
 - The device name in the title row tells you which one is on screen. The tray tooltip shows it
   too, which is handy in the views that hide the title.
 
-To see the physical stick instead, add `WinWingOverlay.exe` to HidHide's whitelist in its
+To see the physical stick instead, add `JoystickInputOverlay.exe` to HidHide's whitelist in its
 Configuration Client.
 
 ## Mapping your controls
@@ -281,7 +284,7 @@ Work through the grip and base, note the numbers, then label them in the config 
 
 ## Configuration
 
-`%APPDATA%\WinWingOverlay\config.json`
+`%APPDATA%\JoystickInputOverlay\config.json`
 
 | Key | Meaning |
 | --- | --- |
@@ -290,7 +293,7 @@ Work through the grip and base, note the numbers, then label them in the config 
 | `backgroundOpacity` | Panel fills only, 0.0 - 1.0. Outlines, text and live values stay solid. |
 | `locked` | Start locked (click-through). |
 | `autoSelectDevice` | Follow whichever device is sending input. `true` by default. |
-| `vendorId` / `productId` | Device preferred at startup. `16536` is WINWING; `0` means "any". |
+| `vendorId` / `productId` | Device preferred at startup. `0` means "whichever is found first". |
 | `hideAxes` | Gauges never drawn, in any view. Same tokens as `minimalHides`. |
 | `buttonCount` | Buttons drawn in the grid. `0` auto-sizes to the 128 the stick declares — set it to `32` or so if you only use the first block and want bigger cells. |
 | `showButtons` | Hide the button grid entirely for a compact axes-only readout. |

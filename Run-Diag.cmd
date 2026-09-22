@@ -4,10 +4,10 @@ REM Use this to work out which button number and axis belongs to which physical 
 setlocal
 pushd "%~dp0"
 
-if exist "dist\WinWingOverlay.exe" (
-  dist\WinWingOverlay.exe --diag
+if exist "dist\JoystickInputOverlay.exe" (
+  dist\JoystickInputOverlay.exe --diag
 ) else (
-  dotnet run --project src\WinWingOverlay\WinWingOverlay.csproj -c Release -- --diag
+  dotnet run --project src\JoystickInputOverlay\JoystickInputOverlay.csproj -c Release -- --diag
 )
 
 popd

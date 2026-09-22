@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// Owns Raw Input registration and turns WM_INPUT messages into decoded device state.

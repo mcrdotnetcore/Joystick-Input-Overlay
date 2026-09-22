@@ -1,4 +1,4 @@
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>The three overlay layouts, cycled with the mode hotkey or the radial dials.</summary>
 internal enum ViewMode

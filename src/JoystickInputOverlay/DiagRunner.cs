@@ -1,4 +1,4 @@
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// Console mode (--diag). Lists every HID joystick with its declared capabilities, then
@@ -10,7 +10,7 @@ internal static class DiagRunner
     {
         AttachConsole();
 
-        Console.WriteLine("WinWing Overlay — device diagnostics");
+        Console.WriteLine("Joystick Input Overlay — device diagnostics");
         Console.WriteLine(new string('=', 66));
 
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; Application.Exit(); };

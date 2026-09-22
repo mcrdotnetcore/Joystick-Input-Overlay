@@ -1,6 +1,6 @@
 using System.Drawing.Imaging;
 
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// A reusable 32-bit ARGB drawing surface presented with UpdateLayeredWindow.

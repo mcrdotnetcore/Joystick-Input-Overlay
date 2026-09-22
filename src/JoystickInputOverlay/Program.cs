@@ -1,4 +1,4 @@
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 internal static class Program
 {

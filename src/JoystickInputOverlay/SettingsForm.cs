@@ -1,4 +1,4 @@
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// The opacity sliders, opened from the tray menu. Changes apply live as you drag and are

@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// P/Invoke surface. Everything here is a documented, user-mode Win32 or HID API.

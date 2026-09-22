@@ -1,4 +1,4 @@
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// A percentage range that paints the collective reading a chosen colour. Ranges are

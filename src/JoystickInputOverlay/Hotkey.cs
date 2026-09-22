@@ -1,4 +1,4 @@
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// A parsed global hotkey, e.g. "Ctrl+Alt+M". Key names are <see cref="Keys"/> names, so

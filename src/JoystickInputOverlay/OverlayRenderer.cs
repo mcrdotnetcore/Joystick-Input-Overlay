@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// Draws the whole overlay with GDI+.

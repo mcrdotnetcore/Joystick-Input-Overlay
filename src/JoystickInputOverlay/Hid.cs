@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 internal enum HidpReportType
 {

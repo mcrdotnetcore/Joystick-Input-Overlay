@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 internal sealed class HotkeyConfig
 {
@@ -40,8 +40,8 @@ internal sealed class OverlayConfig
     /// Vendor / product id preferred at startup. 0 means "first joystick found". With
     /// <see cref="AutoSelectDevice"/> on, this only decides the initial pick.
     /// </summary>
-    public int VendorId { get; set; } = 0x4098;   // WINWING
-    public int ProductId { get; set; } = 0;       // any WINWING device
+    public int VendorId { get; set; }             // 0: whichever joystick is found first
+    public int ProductId { get; set; }
 
     /// <summary>
     /// Gauges never drawn, in any view. Same tokens as <see cref="MinimalHides"/>. Useful when
@@ -178,6 +178,11 @@ internal sealed class OverlayConfig
     [JsonIgnore]
     public static string Path { get; } = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "JoystickInputOverlay", "config.json");
+
+    /// <summary>Where settings lived before the rename. Read once, then written to the new path.</summary>
+    private static string LegacyPath { get; } = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "WinWingOverlay", "config.json");
 
     private static readonly JsonSerializerOptions Options = new()
@@ -190,8 +195,9 @@ internal sealed class OverlayConfig
     {
         try
         {
-            if (File.Exists(Path))
-                return JsonSerializer.Deserialize<OverlayConfig>(File.ReadAllText(Path), Options) ?? new OverlayConfig();
+            string source = File.Exists(Path) ? Path : LegacyPath;
+            if (File.Exists(source))
+                return JsonSerializer.Deserialize<OverlayConfig>(File.ReadAllText(source), Options) ?? new OverlayConfig();
         }
         catch
         {

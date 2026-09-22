@@ -1,6 +1,6 @@
 using System.Drawing.Drawing2D;
 
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// Collective mode, the radial mode dials, and the in-overlay settings page.

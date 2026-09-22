@@ -1,9 +1,9 @@
 @echo off
-REM Builds a standalone WinWingOverlay.exe into .\dist
+REM Builds a standalone JoystickInputOverlay.exe into .\dist
 setlocal
 pushd "%~dp0"
 
-dotnet publish src\WinWingOverlay\WinWingOverlay.csproj ^
+dotnet publish src\JoystickInputOverlay\JoystickInputOverlay.csproj ^
   -c Release ^
   -r win-x64 ^
   --self-contained false ^
@@ -18,6 +18,6 @@ if errorlevel 1 (
 )
 
 echo.
-echo Built: %~dp0dist\WinWingOverlay.exe
+echo Built: %~dp0dist\JoystickInputOverlay.exe
 popd
 endlocal

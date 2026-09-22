@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 internal sealed class AxisInfo
 {

@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace WinWingOverlay;
+namespace JoystickInputOverlay;
 
 /// <summary>
 /// The overlay window itself: borderless, always on top, never takes focus, and click-through
@@ -63,7 +63,7 @@ internal sealed class OverlayForm : Form
                  ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
 
         Bounds = ClampToScreens(new Rectangle(config.X, config.Y, config.Width, config.Height));
-        Text = "WinWing Overlay";
+        Text = "Joystick Input Overlay";
 
         _frameTimer.Interval = Math.Max(8, 1000 / Math.Clamp(config.MaxFps, 15, 144));
         _frameTimer.Tick += OnFrameTick;
@@ -90,13 +90,13 @@ internal sealed class OverlayForm : Form
         _config.Width > 0 ? _config.Width : 460,
         _config.Height > 0 ? _config.Height : 320);
 
-    /// <summary>Diagnostic trace, enabled by setting the WINWING_TRACE environment variable.</summary>
+    /// <summary>Diagnostic trace, enabled by setting the JOYSTICK_OVERLAY_TRACE environment variable.</summary>
     private static void Trace(string message)
     {
-        if (Environment.GetEnvironmentVariable("WINWING_TRACE") is null) return;
+        if (Environment.GetEnvironmentVariable("JOYSTICK_OVERLAY_TRACE") is null) return;
         try
         {
-            File.AppendAllText(Path.Combine(Path.GetTempPath(), "winwing-trace.log"),
+            File.AppendAllText(Path.Combine(Path.GetTempPath(), "joystick-overlay-trace.log"),
                 $"{DateTime.Now:HH:mm:ss.fff}  {message}{Environment.NewLine}");
         }
         catch { }
@@ -183,7 +183,7 @@ internal sealed class OverlayForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not start Raw Input:\n\n{ex.Message}", "WinWing Overlay",
+            MessageBox.Show($"Could not start Raw Input:\n\n{ex.Message}", "Joystick Input Overlay",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
@@ -260,7 +260,7 @@ internal sealed class OverlayForm : Form
         if (!Matches(_minimalKey, keys.ToggleMinimal)) lines.Add($"Minimal: {_minimalKey ?? "none"} (wanted {keys.ToggleMinimal})");
         if (lines.Count == 0) return;
 
-        _tray.BalloonTipTitle = "WinWing Overlay — hotkey in use";
+        _tray.BalloonTipTitle = "Joystick Input Overlay — hotkey in use";
         _tray.BalloonTipText = string.Join(Environment.NewLine, lines) +
                                Environment.NewLine + "Another program owns it. Edit hotkeys in config.json to change.";
         _tray.BalloonTipIcon = ToolTipIcon.Info;
@@ -920,7 +920,7 @@ internal sealed class OverlayForm : Form
     {
         string name = _device?.DisplayName ?? "no device";
         string mode = (_locked ? "locked" : "unlocked") + ", " + _mode.ToString().ToLowerInvariant();
-        string text = $"WinWing Overlay — {mode} — {name}";
+        string text = $"Joystick Input Overlay — {mode} — {name}";
         _tray.Text = text.Length > 63 ? text[..63] : text;
     }
 
