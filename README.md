@@ -68,13 +68,17 @@ changed while unlocked.
 
 | View | Shows |
 | --- | --- |
-| **Full** | Everything: gauges, the yaw bar and the button grid. |
+| **Full** | Every input the device reports: gauges, the yaw bar and the button grid. |
 | **Minimal** | A crop of Full, keeping only what survives `minimalHides`. |
 | **Collective** | One axis as a large white number on navy, and nothing else. |
 
 **Collective** is for reading collective at a glance without a gauge to interpret. It shows
 `collectiveAxis` (default `Slider`), honours `invertAxes`, and reads as a signed value if that
 axis is in `centreOrigin`. Colours come from `collectiveBackground` and `collectiveText`.
+
+If the device does not report the configured axis, it falls back to the first throttle-like one
+it does have - Slider, then Z, RZ, Dial, Wheel - so the view still reads something on a stick
+that names its throttle differently.
 
 Unlock it and a small **%** button appears in the top-right corner. It shows or hides the
 percent symbol - `68%` or `68`. The value is a percentage either way.
@@ -321,9 +325,20 @@ then the hat rosette. Underneath the row is a full-width horizontal bar for Z (y
 button grid sits below that. Anything the device does not report is simply left out, so this
 works unchanged if you plug in a different stick.
 
-Reorder any of it with `gaugeOrder`. Tokens are `XY`, `RXRY`, `HAT`, and any axis name
-(`Z`, `RZ`, `Slider`, `Dial`, `Wheel`) which draws as a vertical bar. A bar axis your device
-reports but the list omits gets appended on the right rather than silently vanishing.
+**All three views are built from the device, not the config.** Full draws everything it finds,
+Minimal is a crop of that same discovered list, and Collective falls back to an axis the device
+actually has. Plugging in a different stick needs no config change in any view.
+
+**Full view is built from the device, not the config.** Every Generic Desktop axis, the hat
+and the button grid are drawn from what the device actually declares, so plugging in a different
+stick shows all of its inputs with no config change. Vendor-specific axes are decoded but not
+drawn - they have no defined meaning, so a gauge for them would be a guess.
+
+`gaugeOrder` only decides the order of the gauges it names; anything else the device reports is
+appended after them. Tokens are `XY`, `RXRY`, `HAT`, and any axis name (`X`, `Y`, `Z`, `RX`,
+`RY`, `RZ`, `Slider`, `Dial`, `Wheel`). Empty the list entirely and you still get everything,
+just in the default order. An axis that normally pairs into a stick box gets its own bar if the
+device reports only one half of the pair.
 
 ### Horizontal and centre-origin bars
 

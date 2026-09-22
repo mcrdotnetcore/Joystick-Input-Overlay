@@ -92,8 +92,34 @@ internal sealed partial class OverlayRenderer
         catch { return fallback; }
     }
 
-    private static ushort CollectiveUsage(OverlayConfig config) =>
-        BarUsageFor(string.IsNullOrWhiteSpace(config.CollectiveAxis) ? "Slider" : config.CollectiveAxis.Trim());
+    /// <summary>Throttle-like axes, in the order Collective view falls back through.</summary>
+    private static readonly ushort[] CollectiveFallbacks =
+    {
+        Native.USAGE_SLIDER, Native.USAGE_Z, Native.USAGE_RZ, Native.USAGE_DIAL, Native.USAGE_WHEEL
+    };
+
+    /// <summary>
+    /// The axis Collective view reads: the configured one when the device has it, otherwise the
+    /// first throttle-like axis it does report. That way the view works on whatever is plugged
+    /// in rather than showing "--" because the config names an axis this device lacks.
+    /// </summary>
+    private static ushort CollectiveUsage(OverlayConfig config, JoystickDevice? device)
+    {
+        ushort configured = BarUsageFor(
+            string.IsNullOrWhiteSpace(config.CollectiveAxis) ? "Slider" : config.CollectiveAxis.Trim());
+
+        if (device is null) return configured;
+
+        bool Has(ushort usage) => usage != 0 &&
+            device.Axes.Any(a => a.Usage == usage && a.UsagePage == Native.USAGE_PAGE_GENERIC);
+
+        if (Has(configured)) return configured;
+
+        foreach (ushort usage in CollectiveFallbacks)
+            if (Has(usage)) return usage;
+
+        return configured;
+    }
 
     /// <summary>
     /// Colour for a collective reading, or null when banding is off so the caller keeps its own
@@ -183,7 +209,7 @@ internal sealed partial class OverlayRenderer
         using (var border = new Pen(locked ? Color.FromArgb(46, 66, 104) : Accent, locked ? 1f : 2f))
             g.DrawRectangle(border, 0, 0, client.Width - 1, client.Height - 1);
 
-        ushort usage = CollectiveUsage(config);
+        ushort usage = CollectiveUsage(config, device);
 
         string text = "--";
         Color colour = ParseColour(config.CollectiveText, Color.White);

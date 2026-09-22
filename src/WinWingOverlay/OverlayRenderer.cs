@@ -206,7 +206,7 @@ internal sealed partial class OverlayRenderer : IDisposable
                 DrawHBar(g, new RectangleF(gaugeArea.X, y, rowWidth, thickness),
                     labels ? item.Label : null, reading,
                     labels && config.ShowAxisReadouts, centre, _fontTiny,
-                    item.Usage == CollectiveUsage(config) ? BandTint(config, reading * 100.0) : null);
+                    item.Usage == CollectiveUsage(config, device) ? BandTint(config, reading * 100.0) : null);
                 y += thickness + metrics.Gap;
             }
 
@@ -324,60 +324,110 @@ internal sealed partial class OverlayRenderer : IDisposable
         tokens is { Count: > 0 } &&
         tokens.Any(t => string.Equals(t?.Trim(), token, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Every gauge the device can drive. <c>gaugeOrder</c> decides the order of the ones it
+    /// names; anything else the device reports is appended afterwards, so plugging in a
+    /// different stick shows all of its inputs without touching the config.
+    ///
+    /// Only Generic Desktop axes are drawn. Vendor-specific ones are decoded but have no
+    /// defined meaning, so a gauge for them would be a guess.
+    /// </summary>
     private List<GaugeItem> BuildItems(JoystickDevice device, OverlayConfig config, bool minimal)
     {
-        var present = new HashSet<ushort>(device.Axes.Select(a => a.Usage));
+        var present = new HashSet<ushort>(device.Axes
+            .Where(a => a.UsagePage == Native.USAGE_PAGE_GENERIC)
+            .Select(a => a.Usage));
+
         var bottom = BottomSet(config);
+        var items = new List<GaugeItem>();
+        var used = new HashSet<ushort>();
+
+        bool Claim(ushort usage, string token)
+        {
+            if (!present.Contains(usage) || used.Contains(usage)) return false;
+            if (Hides(config, minimal, token)) { used.Add(usage); return false; }
+            return true;
+        }
+
+        void AddStick(GaugeKind kind, ushort first, ushort second, string token, string label, float factor)
+        {
+            if (!present.Contains(first) || !present.Contains(second)) return;
+            if (used.Contains(first) || used.Contains(second)) return;
+            if (Hides(config, minimal, token)) { used.Add(first); used.Add(second); return; }
+
+            items.Add(new GaugeItem(kind, 0, label, factor));
+            used.Add(first);
+            used.Add(second);
+        }
+
+        void AddHat()
+        {
+            if (!Claim(Native.USAGE_HATSWITCH, "HAT")) return;
+            items.Add(new GaugeItem(GaugeKind.Hat, Native.USAGE_HATSWITCH, "HAT", 0.5f));
+            used.Add(Native.USAGE_HATSWITCH);
+        }
+
+        void AddBar(ushort usage)
+        {
+            if (usage == 0) return;
+
+            string name = AxisInfo.NameFor(usage);
+
+            // Axes drawn as a full-width bar under the row belong to that row, not this one.
+            if (bottom.Contains(name)) { used.Add(usage); return; }
+            if (!Claim(usage, name)) return;
+
+            items.Add(new GaugeItem(GaugeKind.Bar, usage, name, 0f));
+            used.Add(usage);
+        }
+
         var order = config.GaugeOrder is { Count: > 0 }
             ? config.GaugeOrder
             : new List<string> { "XY", "Z", "Slider", "RXRY", "HAT" };
 
-        var items = new List<GaugeItem>();
-        var placedBars = new HashSet<ushort>();
-
         foreach (string? raw in order)
         {
             string token = raw?.Trim() ?? "";
-            if (token.Length == 0 || Hides(config, minimal, token)) continue;
+            if (token.Length == 0) continue;
 
             switch (token.ToUpperInvariant())
             {
                 case "XY":
-                    if (present.Contains(Native.USAGE_X) && present.Contains(Native.USAGE_Y))
-                        items.Add(new GaugeItem(GaugeKind.StickXY, 0, "X / Y", 1.0f));
+                    AddStick(GaugeKind.StickXY, Native.USAGE_X, Native.USAGE_Y, "XY", "X / Y", 1.0f);
                     break;
 
                 case "RXRY":
-                    if (present.Contains(Native.USAGE_RX) && present.Contains(Native.USAGE_RY))
-                        items.Add(new GaugeItem(GaugeKind.StickRXRY, 0, "RX / RY", 0.62f));
+                    AddStick(GaugeKind.StickRXRY, Native.USAGE_RX, Native.USAGE_RY, "RXRY", "RX / RY", 0.62f);
                     break;
 
                 case "HAT":
                 case "HATSWITCH":
-                    if (present.Contains(Native.USAGE_HATSWITCH))
-                        items.Add(new GaugeItem(GaugeKind.Hat, Native.USAGE_HATSWITCH, "HAT", 0.5f));
+                    AddHat();
                     break;
 
                 default:
-                    ushort usage = BarUsageFor(token);
-                    if (usage == 0 || bottom.Contains(AxisInfo.NameFor(usage))) break;
-                    if (present.Contains(usage) && placedBars.Add(usage))
-                        items.Add(new GaugeItem(GaugeKind.Bar, usage, AxisInfo.NameFor(usage), 0f));
+                    AddBar(BarUsageFor(token));
                     break;
             }
         }
 
-        // Bar axes the device reports but the configured order never mentions.
-        foreach (ushort usage in BarUsages)
-        {
-            if (!present.Contains(usage) || placedBars.Contains(usage)) continue;
-            if (bottom.Contains(AxisInfo.NameFor(usage))) continue;
-            if (Hides(config, minimal, AxisInfo.NameFor(usage))) continue;
-            items.Add(new GaugeItem(GaugeKind.Bar, usage, AxisInfo.NameFor(usage), 0f));
-        }
+        // Whatever the order did not mention. Paired axes become a box, the rest become bars,
+        // including a lone X or RY on a device that only reports one half of a pair.
+        AddStick(GaugeKind.StickXY, Native.USAGE_X, Native.USAGE_Y, "XY", "X / Y", 1.0f);
+        AddStick(GaugeKind.StickRXRY, Native.USAGE_RX, Native.USAGE_RY, "RXRY", "RX / RY", 0.62f);
+        AddHat();
+
+        foreach (ushort usage in BarUsages) AddBar(usage);
+        foreach (ushort usage in PairedUsages) AddBar(usage);
 
         return items;
     }
+
+    /// <summary>Axes that normally pair into a stick box, but get their own bar when unpaired.</summary>
+    private static readonly ushort[] PairedUsages =
+    {
+        Native.USAGE_X, Native.USAGE_Y, Native.USAGE_RX, Native.USAGE_RY
+    };
 
     private static ushort BarUsageFor(string token) => token.ToUpperInvariant() switch
     {
@@ -386,6 +436,10 @@ internal sealed partial class OverlayRenderer : IDisposable
         "SLIDER" => Native.USAGE_SLIDER,
         "DIAL" => Native.USAGE_DIAL,
         "WHEEL" => Native.USAGE_WHEEL,
+        "X" => Native.USAGE_X,
+        "Y" => Native.USAGE_Y,
+        "RX" => Native.USAGE_RX,
+        "RY" => Native.USAGE_RY,
         _ => (ushort)0
     };
 
@@ -480,7 +534,7 @@ internal sealed partial class OverlayRenderer : IDisposable
                     double reading = Value(state, item.Usage, centred ? 0.5 : 0.0, config);
                     DrawBar(g, r, labels ? item.Label : null, reading,
                         labels && config.ShowAxisReadouts, centred, barFont,
-                        item.Usage == CollectiveUsage(config) ? BandTint(config, reading * 100.0) : null);
+                        item.Usage == CollectiveUsage(config, device) ? BandTint(config, reading * 100.0) : null);
                     break;
             }
 
