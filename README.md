@@ -351,7 +351,7 @@ Work through the grip and base, note the numbers, then label them in the config 
 | `collectiveShowPercent` | `true` draws the % symbol, `false` leaves the bare number. The corner button toggles it. |
 | `collectiveText` | Colour when no band matches, and whenever banding is off. `White`, `Green`, `Yellow`, `Red`, or a hex value. |
 | `collectiveBandsEnabled` | Whether value-based colouring is applied at all. |
-| `collectiveBands` | The ranges, e.g. `[{ "min": 0, "max": 15, "colour": "Red" }]`. |
+| `collectiveBands` | The ranges, e.g. `[{ "min": 0, "max": 15, "colour": "Red" }]`. Defaults to Red 0-15, Yellow 30-40, Green 90-100. |
 | `collectiveWidth` / `collectiveHeight` | Collective view size once dragged. `0` derives it from the basis. |
 | `collectiveBackground` | Collective background colour. Defaults to `#101E3A`. |
 | `collectiveText` | Collective number colour. Defaults to `#FFFFFF`. |

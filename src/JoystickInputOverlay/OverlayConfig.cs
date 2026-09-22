@@ -145,11 +145,17 @@ internal sealed class OverlayConfig
     public bool CollectiveBandsEnabled { get; set; }
 
     /// <summary>
-    /// Percentage ranges that override the colour, e.g. 0-15 Red. Inclusive at both ends;
-    /// the first band containing the value wins. Anything uncovered uses
-    /// <see cref="CollectiveText"/>.
+    /// Percentage ranges that override the colour. Inclusive at both ends; the first band
+    /// containing the value wins. Anything uncovered uses <see cref="CollectiveText"/>.
+    /// Ships with a low, a caution and a high band; they only take effect once
+    /// <see cref="CollectiveBandsEnabled"/> is on.
     /// </summary>
-    public List<ColourBand> CollectiveBands { get; set; } = new();
+    public List<ColourBand> CollectiveBands { get; set; } = new()
+    {
+        new ColourBand { Min = 0,  Max = 15,  Colour = "Red" },
+        new ColourBand { Min = 30, Max = 40,  Colour = "Yellow" },
+        new ColourBand { Min = 90, Max = 100, Colour = "Green" }
+    };
 
     /// <summary>
     /// The view, resolved from <see cref="Mode"/> and falling back to the legacy
