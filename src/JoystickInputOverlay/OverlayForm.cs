@@ -63,7 +63,9 @@ internal sealed class OverlayForm : Form
                  ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
 
         Bounds = ClampToScreens(new Rectangle(config.X, config.Y, config.Width, config.Height));
-        Text = "Joystick Input Overlay";
+        // Deliberately version-free and fixed: OBS and other capture tools match on the window
+        // title, so changing it between releases would break their source.
+        Text = AppInfo.Name;
 
         _frameTimer.Interval = Math.Max(8, 1000 / Math.Clamp(config.MaxFps, 15, 144));
         _frameTimer.Tick += OnFrameTick;
@@ -920,8 +922,11 @@ internal sealed class OverlayForm : Form
     {
         string name = _device?.DisplayName ?? "no device";
         string mode = (_locked ? "locked" : "unlocked") + ", " + _mode.ToString().ToLowerInvariant();
-        string text = $"Joystick Input Overlay — {mode} — {name}";
-        _tray.Text = text.Length > 63 ? text[..63] : text;
+
+        // NotifyIcon.Text is capped, so put the identity first and let the device name be the
+        // part that gets trimmed on a very long product string.
+        string text = $"{AppInfo.NameWithVersion}\n{mode} — {name}";
+        _tray.Text = text.Length > 127 ? text[..127] : text;
     }
 
     protected override void OnClosing(CancelEventArgs e)

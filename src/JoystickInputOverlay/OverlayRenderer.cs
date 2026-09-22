@@ -608,7 +608,28 @@ internal sealed partial class OverlayRenderer : IDisposable
             Trimming = StringTrimming.EllipsisCharacter,
             FormatFlags = StringFormatFlags.NoWrap
         };
-        g.DrawString(name, _fontTitle, _text, new RectangleF(r.X, r.Y, Math.Max(10f, r.Width - hintW), r.Height), left);
+
+        // The version is drawn text, not the window title: the title has to stay constant so a
+        // capture tool matching on it keeps working across releases.
+        string version = "v" + AppInfo.Version;
+        float versionW = MeasureText(g, version, _fontTiny) + 8f;
+
+        float nameRoom = Math.Max(10f, r.Width - hintW);
+
+        // Reserve the version's room up front rather than only showing it when the name
+        // happens to be short, otherwise a long product string hides it entirely. The name
+        // ellipsizes into whatever is left, as long as a readable amount remains.
+        bool showVersion = nameRoom - versionW >= 60f;
+        float nameRoomLeft = showVersion ? nameRoom - versionW : nameRoom;
+
+        g.DrawString(name, _fontTitle, _text, new RectangleF(r.X, r.Y, nameRoomLeft, r.Height), left);
+
+        if (showVersion)
+        {
+            float nameW = Math.Min(MeasureText(g, name, _fontTitle) + 8f, nameRoomLeft);
+            g.DrawString(version, _fontTiny, _textDim,
+                new RectangleF(r.X + nameW, r.Y, versionW, r.Height), _leftTight);
+        }
 
         using var right = new StringFormat(StringFormat.GenericTypographic)
         {

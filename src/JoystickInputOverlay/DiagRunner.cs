@@ -10,7 +10,7 @@ internal static class DiagRunner
     {
         AttachConsole();
 
-        Console.WriteLine("Joystick Input Overlay — device diagnostics");
+        Console.WriteLine($"{AppInfo.NameWithVersion} — device diagnostics");
         Console.WriteLine(new string('=', 66));
 
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; Application.Exit(); };

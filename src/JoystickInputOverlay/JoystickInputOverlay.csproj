@@ -2,6 +2,11 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+
+    <!-- Bump this for every release; it drives FileVersion, ProductVersion and
+         AssemblyVersion, so the published exe reports the version it was built from. -->
+    <Version>1.0.1</Version>
+
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>

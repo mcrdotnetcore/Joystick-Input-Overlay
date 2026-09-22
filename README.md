@@ -77,12 +77,15 @@ runtime bundled inside, verified to start in a folder containing nothing else. B
 
 ### Cutting a release
 
-1. `Publish-Release.cmd`
-2. On GitHub: **Releases**, **Draft a new release**
-3. **Choose a tag**, type a new one such as `v1.0.0`, and pick **Create new tag on publish**
-4. Give it a title and a short list of what changed
-5. Drag `release\JoystickInputOverlay.exe` into the attachments box
-6. **Publish release**
+1. Bump `<Version>` in `src\JoystickInputOverlay\JoystickInputOverlay.csproj` - patch number
+   for a fix, minor for a feature. Double-click the project node in Solution Explorer to edit
+   it; the project node is the csproj.
+2. `Publish-Release.cmd`
+3. On GitHub: **Releases**, **Draft a new release**
+4. **Choose a tag** matching the version, such as `v1.0.1`, and pick **Create new tag on publish**
+5. Give it a title and a short list of what changed
+6. Drag `release\JoystickInputOverlay.exe` into the attachments box
+7. **Publish release**
 
 The `/releases/latest` link above then resolves to it, so the download line in this README never
 needs updating.
